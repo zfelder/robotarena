@@ -63,12 +63,17 @@ const MELEE = {
 };
 const DEFAULT_MELEE = "knife";
 
-// Map walls (AABBs in XZ): {x, z, w, d}
+// Map walls (3D AABBs). Each wall: {x, z, w, d} with optional {y, h}.
+// Defaults: y = 1.5 (center), h = 3 (full ground-floor height).
+// Perimeter walls are made tall (h=6, y=3) so elevated shots still hit them.
 const WALLS = [
-  { x: 0, z: -MAP_HALF, w: MAP_HALF * 2, d: 1 },
-  { x: 0, z: MAP_HALF, w: MAP_HALF * 2, d: 1 },
-  { x: -MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2 },
-  { x: MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2 },
+  // Perimeter (extra-tall so shots from towers still collide)
+  { x: 0, z: -MAP_HALF, w: MAP_HALF * 2, d: 1, y: 3, h: 6 },
+  { x: 0, z: MAP_HALF, w: MAP_HALF * 2, d: 1, y: 3, h: 6 },
+  { x: -MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2, y: 3, h: 6 },
+  { x: MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2, y: 3, h: 6 },
+
+  // Ground-floor cover (default y=1.5, h=3)
   { x: -12, z: -10, w: 6, d: 1 },
   { x: 10, z: -12, w: 1, d: 6 },
   { x: 14, z: 8, w: 5, d: 1 },
@@ -83,6 +88,34 @@ const WALLS = [
   { x: 2, z: -18, w: 8, d: 1 },
   { x: 20, z: -20, w: 2, d: 2 },
   { x: -20, z: 20, w: 2, d: 2 },
+
+  // === SECOND STORY: 4 corner sniper towers, each 4x4 at top y=2.5 ===
+  { x: -23, z: -23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
+  { x:  23, z: -23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
+  { x:  23, z:  23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
+  { x: -23, z:  23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
+
+  // Stair flights (4 steps × 0.5 high) leading from arena interior to each tower edge
+  // NW tower (-23,-23): stairs along z=-23, climbing east toward the tower
+  { x: -18, z: -23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
+  { x: -19, z: -23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
+  { x: -20, z: -23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
+  { x: -21, z: -23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
+  // NE tower (23,-23): stairs along z=-23, climbing west toward the tower
+  { x:  18, z: -23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
+  { x:  19, z: -23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
+  { x:  20, z: -23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
+  { x:  21, z: -23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
+  // SE tower (23,23): stairs along z=23, climbing west
+  { x:  18, z:  23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
+  { x:  19, z:  23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
+  { x:  20, z:  23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
+  { x:  21, z:  23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
+  // SW tower (-23,23): stairs along z=23, climbing east
+  { x: -18, z:  23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
+  { x: -19, z:  23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
+  { x: -20, z:  23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
+  { x: -21, z:  23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
 ];
 
 const PLAYER_SPAWN = [-MAP_HALF + 3, 0, -MAP_HALF + 3];
@@ -100,8 +133,20 @@ const PICKUP_TEMPLATES = [
 ];
 
 // ========================= GEOMETRY HELPERS =========================
-function collidesWalls(x, z, r) {
+// Wall y/h defaults if not specified.
+function wallY(w)   { return w.y ?? 1.5; }
+function wallH(w)   { return w.h ?? 3; }
+function wallTop(w) { return wallY(w) + wallH(w) / 2; }
+function wallBot(w) { return wallY(w) - wallH(w) / 2; }
+
+// Does an entity occupying [yLo, yHi] vertically overlap wall w?
+function wallOverlapsY(w, yLo, yHi) {
+  return wallTop(w) > yLo + 1e-3 && wallBot(w) < yHi - 1e-3;
+}
+
+function collidesWalls(x, z, r, yLo = 0, yHi = 1.6) {
   for (const w of WALLS) {
+    if (!wallOverlapsY(w, yLo, yHi)) continue;
     const minX = w.x - w.w / 2 - r, maxX = w.x + w.w / 2 + r;
     const minZ = w.z - w.d / 2 - r, maxZ = w.z + w.d / 2 + r;
     if (x > minX && x < maxX && z > minZ && z < maxZ) return true;
@@ -109,10 +154,13 @@ function collidesWalls(x, z, r) {
   return false;
 }
 
-function resolveWalls(pos, r) {
+// Bot-level wall resolution: ignores anything entirely above the bot's body so
+// bots walk under elevated platforms.
+function resolveWalls(pos, r, yLo = 0, yHi = 1.6) {
   for (let i = 0; i < 3; i++) {
     let collided = false;
     for (const w of WALLS) {
+      if (!wallOverlapsY(w, yLo, yHi)) continue;
       const dx = pos[0] - w.x, dz = pos[2] - w.z;
       const hx = w.w / 2 + r, hz = w.d / 2 + r;
       if (Math.abs(dx) > hx || Math.abs(dz) > hz) continue;
@@ -126,9 +174,12 @@ function resolveWalls(pos, r) {
   }
 }
 
-function rayWallDist(ox, oz, dx, dz, maxDist) {
+// Ray vs walls — filters walls by the ray's vertical band [rayY-tol, rayY+tol] so
+// elevated shooters aren't blocked by ground-only obstacles, and vice versa.
+function rayWallDist(ox, oz, dx, dz, maxDist, rayY = 1.4) {
   let nearest = maxDist;
   for (const w of WALLS) {
+    if (rayY < wallBot(w) - 0.1 || rayY > wallTop(w) + 0.1) continue;
     const minX = w.x - w.w / 2, maxX = w.x + w.w / 2;
     const minZ = w.z - w.d / 2, maxZ = w.z + w.d / 2;
     let tmin = 0, tmax = maxDist;
@@ -168,8 +219,8 @@ function rayCylDist(ox, oz, dx, dz, cx, cz, r, maxDist) {
 function rayWallDist3D(ox, oy, oz, dx, dy, dz, maxDist) {
   let nearest = maxDist;
   for (const w of WALLS) {
-    const mins = [w.x - w.w / 2, 0, w.z - w.d / 2];
-    const maxs = [w.x + w.w / 2, 3, w.z + w.d / 2];
+    const mins = [w.x - w.w / 2, wallBot(w), w.z - w.d / 2];
+    const maxs = [w.x + w.w / 2, wallTop(w), w.z + w.d / 2];
     const o = [ox, oy, oz], d = [dx, dy, dz];
     let tmin = 0, tmax = maxDist, ok = true;
     for (let i = 0; i < 3; i++) {
@@ -391,6 +442,20 @@ function tickGame(room) {
 
   const players = [...room.clients.values()].filter(c => c.player).map(c => c.player);
 
+  // Pause when any client has the in-game settings menu open
+  const paused = [...room.clients.values()].some(c => c.menuOpen);
+  const dtMs = 1000 / TICK_HZ;
+
+  if (paused) {
+    // Freeze deadlines so cooldowns/timers don't elapse while paused
+    game.nextWaveAt += dtMs;
+    for (const b of game.bots) b.lastFire += dtMs;
+    for (const p of players) {
+      if (p.deadUntil > 0) p.deadUntil += dtMs;
+      p.invulnUntil += dtMs;
+    }
+  }
+
   // Respawn players (endless waves: always respawn, no loss state)
   for (const p of players) {
     if (p.hp <= 0 && p.deadUntil <= now) {
@@ -403,8 +468,8 @@ function tickGame(room) {
     }
   }
 
-  // Wave spawning
-  if (!game.over) {
+  // Wave spawning (skip while paused)
+  if (!game.over && !paused) {
     const liveBots = game.bots.filter(b => b.hp > 0).length;
     if (liveBots === 0 && now >= game.nextWaveAt) {
       spawnWave(game);
@@ -416,8 +481,9 @@ function tickGame(room) {
     }
   }
 
-  // Bot AI
+  // Bot AI — skipped entirely while paused (bots stand still, don't shoot)
   for (const bot of game.bots) {
+    if (paused) break; // no movement, no shooting
     if (bot.hp <= 0) continue;
 
     const sight = bot.sight ?? BOT_SIGHT;
@@ -439,11 +505,11 @@ function tickGame(room) {
     const nx = dx / dist, nz = dz / dist;
     bot.yaw = Math.atan2(nx, nz);
 
-    const wallDist = rayWallDist(bot.pos[0], bot.pos[2], nx, nz, dist);
+    const wallDist = rayWallDist(bot.pos[0], bot.pos[2], nx, nz, dist, bot.boss ? 1.8 : 1.4);
     const hasLOS = wallDist >= dist - 0.5;
 
     if (hasLOS && dist < sight) {
-      if (now - bot.lastFire > fireCd) {
+      if (!paused && now - bot.lastFire > fireCd) {
         bot.lastFire = now;
         // Bosses (tier >= 2) fire a small spread burst; tier 4+ wider
         const burst = bot.boss && bot.tier >= 2 ? Math.min(1 + Math.floor(bot.tier / 2), 4) : 1;
@@ -625,6 +691,7 @@ function tickGame(room) {
     wave: game.wave,
     nextWaveIn: game.nextWaveAt > now ? game.nextWaveAt - now : 0,
     over: game.over,
+    paused,
     players: players.map(p => {
       const ws = p.weapons[p.weapon] || { ammo: 0, reserve: 0 };
       return {
@@ -739,7 +806,8 @@ wss.on("connection", (ws) => {
       if (Array.isArray(msg.pos) && msg.pos.length === 3) {
         const x = Math.max(-MAP_HALF + 0.5, Math.min(MAP_HALF - 0.5, msg.pos[0]));
         const z = Math.max(-MAP_HALF + 0.5, Math.min(MAP_HALF - 0.5, msg.pos[2]));
-        p.pos = [x, msg.pos[1] || 0, z];
+        const py = typeof msg.pos[1] === 'number' ? Math.max(0, Math.min(12, msg.pos[1])) : 1.6;
+        p.pos = [x, py, z];
       }
       if (typeof msg.yaw === "number") p.yaw = msg.yaw;
       if (typeof msg.pitch === "number") p.pitch = msg.pitch;
@@ -857,6 +925,11 @@ wss.on("connection", (ws) => {
           });
         }
       }
+      return;
+    }
+
+    if (msg.type === "menu") {
+      client.menuOpen = !!msg.open;
       return;
     }
 

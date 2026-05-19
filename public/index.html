@@ -37,15 +37,16 @@
   #crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 4px; height: 4px; background: #fff; box-shadow: 0 0 0 1px #000, 8px 0 0 #fff, -8px 0 0 #fff, 0 8px 0 #fff, 0 -8px 0 #fff, 8px 0 0 1px #000, -8px 0 0 1px #000, 0 8px 0 1px #000, 0 -8px 0 1px #000; }
 
   /* CoD-style hit marker — four short diagonal ticks around crosshair */
-  #hit-marker { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin-left: -20px; margin-top: -20px; opacity: 0; pointer-events: none; }
-  #hit-marker .tick { position: absolute; left: 50%; top: 50%; width: 2px; height: 9px; background: #fff; box-shadow: 0 0 0 1px #000, 0 0 4px #fff; transform-origin: 50% 50%; }
-  #hit-marker .tick.tl { transform: translate(-13px, -13px) rotate(45deg); }
-  #hit-marker .tick.tr { transform: translate(11px, -13px) rotate(-45deg); }
-  #hit-marker .tick.bl { transform: translate(-13px, 11px) rotate(-45deg); }
-  #hit-marker .tick.br { transform: translate(11px, 11px) rotate(45deg); }
+  #hit-marker { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin-left: -24px; margin-top: -24px; opacity: 0; pointer-events: none; }
+  /* Four diagonal ticks pointing from near-center outward to each corner (X-shape). */
+  #hit-marker .tick { position: absolute; left: 50%; top: 50%; width: 2px; height: 12px; background: #fff; box-shadow: 0 0 0 1px #000, 0 0 4px #fff; }
+  #hit-marker .tick.tl { transform: translate(-50%, -50%) translate(-10px, -10px) rotate(45deg); }
+  #hit-marker .tick.tr { transform: translate(-50%, -50%) translate( 10px, -10px) rotate(-45deg); }
+  #hit-marker .tick.bl { transform: translate(-50%, -50%) translate(-10px,  10px) rotate(-45deg); }
+  #hit-marker .tick.br { transform: translate(-50%, -50%) translate( 10px,  10px) rotate(45deg); }
   #hit-marker.show { animation: hitMarkerPop 0.28s ease-out forwards; }
-  #hit-marker.head .tick { background: #ff4040; box-shadow: 0 0 0 1px #000, 0 0 6px #ff5050; height: 12px; width: 3px; }
-  #hit-marker.kill .tick { background: #ffcc44; box-shadow: 0 0 0 1px #000, 0 0 8px #ffaa22; height: 14px; width: 3px; }
+  #hit-marker.head .tick { background: #ff4040; box-shadow: 0 0 0 1px #000, 0 0 6px #ff5050; height: 14px; width: 3px; }
+  #hit-marker.kill .tick { background: #ffcc44; box-shadow: 0 0 0 1px #000, 0 0 8px #ffaa22; height: 16px; width: 3px; }
   #hit-marker.kill { animation-duration: 0.5s; }
   @keyframes hitMarkerPop {
     0%   { opacity: 0; transform: scale(0.6); }
@@ -98,6 +99,9 @@
   #settings-panel button { background: #ff5050; color: #fff; border: 0; padding: 8px 16px; font: inherit; cursor: pointer; letter-spacing: 1px; }
   #settings-panel button.secondary { background: #2a3140; }
   #settings-panel button:hover { filter: brightness(1.2); }
+
+  /* Pause banner shown to ALL clients when any player has the menu open */
+  #pause-banner { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); padding: 8px 18px; background: rgba(10,12,16,0.85); border: 2px solid #ffcc44; color: #ffcc44; letter-spacing: 3px; font-size: 14px; }
 
   /* Overlays */
   #click-to-play { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; background: rgba(10,12,16,0.6); pointer-events: auto; cursor: pointer; }
@@ -221,6 +225,8 @@
     <div id="bots-left" style="font-size:11px; color:#8b949e;">awaiting orders</div>
   </div>
 
+  <div id="pause-banner" class="hidden">PAUSED · MENU OPEN</div>
+
   <div id="radar"><canvas id="radar-canvas" width="160" height="160"></canvas></div>
 
   <div id="killfeed"></div>
@@ -240,7 +246,7 @@
     <div id="ammo-panel" class="hud-panel">
       <div style="font-size:11px; letter-spacing:2px; color:#8b949e;">AMMO</div>
       <div><span id="ammo-big">30</span> <span style="color:#8b949e;">/ <span id="ammo-reserve">90</span></span></div>
-      <div style="font-size:11px; color:#8b949e;">R reload · G grenade · RMB ADS</div>
+      <div style="font-size:11px; color:#8b949e;">R reload · G grenade · RMB ADS · C slide</div>
       <div id="nade-state" style="font-size:11px; color:#44ff66; margin-top:2px;">[G] READY</div>
       <div id="weapon-panel"><span class="w" id="w-rifle">1 RIFLE</span><span class="w" id="w-pistol">2 PISTOL</span></div>
     </div>
@@ -250,6 +256,7 @@
     <div class="title">CLICK TO ENGAGE</div>
     <div class="controls">
       <b>WASD</b> move · <b>SHIFT</b> sprint · <b>SPACE</b> jump · <b>MOUSE</b> aim<br/>
+      <b>C</b> slide (while sprinting) · <b>jump into a wall</b> to wall-run · <b>SPACE</b> on a wall to wall-jump<br/>
       <b>LMB</b> shoot · <b>RMB</b> aim down sights · <b>WHEEL / 1-2</b> swap weapon<br/>
       <b>R</b> reload · <b>G</b> grenade · <b>T</b> chat · <b>TAB</b> scoreboard · <b>ESC</b> release mouse
     </div>
@@ -291,7 +298,7 @@
         <div class="row slider-row">
           <div>
             <label for="set-sens">Mouse sensitivity</label>
-            <span class="desc">Ease-in-quad curve · ADS uses 70% of this</span>
+            <span class="desc">Linear · ADS scales to FOV (Uniform Soldier Aiming)</span>
           </div>
           <div class="slider-control">
             <input id="set-sens" type="range" min="0.2" max="2" step="0.05" value="1" />
@@ -374,6 +381,45 @@ const keys = {};
 let velocityY = 0;
 let onGround = true;
 let isSprinting = false;
+
+// ----- Advanced movement (slide / wall-run / wall-jump) -----
+// mState drives the movement branch in animate():
+//   'ground'   normal WASD on the floor
+//   'airborne' jumping/falling, air-strafe with WASD
+//   'wallrun'  attached to a wall surface, gliding along its tangent
+//   'sliding'  brief boosted slide along the entry direction, lowered camera
+let mState = 'ground';
+const SLIDE_BOOST    = 11.0;  // initial slide velocity (m/s)
+const SLIDE_FRICTION = 4.5;   // per-second decel
+const SLIDE_MAX_T    = 0.95;  // max slide duration (s)
+const SLIDE_MIN_SPD  = 3.0;   // exit slide when forward speed drops below this
+const SLIDE_COOLDOWN = 0.4;   // s between slides
+const SLIDE_JUMP_VY  = 5.6;   // slide-jump vertical boost (carries the slide velocity)
+const VIEW_HEIGHT    = 1.6;
+const SLIDE_HEIGHT   = 1.05;
+const WALL_REACH       = 0.8;   // detection radius from a wall surface
+const WALL_STICK       = 0.42;  // target distance to wall (≈ player collision radius)
+const WALL_RUN_MAX_T   = 1.6;   // max wall-run duration (s)
+const WALL_RUN_SPEED   = 8.0;   // forward speed along the wall
+const WALL_RUN_GRAV    = 1.2;   // reduced gravity while wall-running (vs 14)
+const WALL_RUN_MIN_Y   = 0.3;   // feet must be this high above floor before attaching
+const WALL_RUN_COOLDOWN = 0.4;  // s between attaches (also blocks re-attach after wall-jump)
+const WALL_TILT        = 0.16;  // camera roll while wall-running (rad)
+const WALL_JUMP_PUSH   = 6.5;   // horizontal push away from wall
+const WALL_JUMP_UP     = 5.8;   // vertical boost on wall-jump
+const WALL_JUMP_FWD    = 2.5;   // forward bias added to the jump
+let slideT = 0;
+let slideCD = 0;
+let slideVel = new THREE.Vector3();   // world XZ velocity while sliding
+let wallRunT = 0;
+let wallRunCD = 0;
+let wallRunNormal = new THREE.Vector3();
+let wallRunTangent = new THREE.Vector3();
+let wallRunWallId = -1;
+let extraVel = new THREE.Vector3();   // transient world XZ momentum from wall-/slide-jumps; decays
+const EXTRA_DECAY = 2.2;
+let viewHeight = VIEW_HEIGHT;          // current eye height (sliding lowers this)
+let camRoll = 0, camRollTarget = 0;    // wall-run tilt
 let lastSendInput = 0;
 let lastHp = 100;
 const chatLines = [];
@@ -390,6 +436,7 @@ const weaponMuzzles = {};     // { rifle: Object3D, pistol: Object3D }
 let bobTime = 0;
 let bobAmount = 0;       // 0 = idle, 1 = full
 let lastBobY = 0;        // applied to camera last frame, removed before physics
+let lastViewOffset = 0;  // (viewHeight - VIEW_HEIGHT) applied last frame, also stripped before physics
 let weaponRecoil = 0;    // 0..1, decays each frame
 
 // Per-weapon view-model rest pose (hip vs. ADS) and visual config
@@ -406,22 +453,49 @@ let currentWeapon = 'rifle';
 let adsHeld = false;     // RMB pressed
 let adsT = 0;            // 0 = hip, 1 = full ADS (smoothed)
 
-// Aim sensitivity — Battlefield-style power curve.
-// Per-event mouse magnitude `mag` (pixels) is run through mag^EXP * SCALE, then the
-// result is redistributed along the input direction. EXP > 1 ⇒ slow movements yield
-// less turn per pixel than fast ones (acceleration). ADS multiplies the whole thing.
-const AIM_EXPONENT  = 1.35;
-const AIM_SCALE     = 0.00075;
-const AIM_MIN_MAG   = 0.001;
-const AIM_ADS_MUL   = 0.7;
-const AIM_PITCH_MUL = 0.85;   // pitch a touch slower than yaw, easier to track horizon
+// Aim model: Battlefield V "Uniform Soldier Aiming" (USA).
+// Mouse-to-angle is LINEAR — no acceleration curve. The crucial bit is the FOV-aware
+// zoom scale: when the camera FOV narrows (ADS), the per-count angular delta is scaled
+// down so the on-screen pixel velocity of a target stays consistent across FOVs.
+//
+// Per-axis: angle += dx * AIM_BASE * aimUserMul * zoomScale(camera.fov)
+//
+// USA coefficient picks the screen distance the match is anchored to:
+//   coef = 0      → focal-length match: zoomScale = tan(f/2)/tan(F/2)
+//   coef = 1.333  → 4:3 monitor match (BFV's documented default)
+//   coef = 1.778  → 16:9 monitor match
+// General form: zoomScale(f) = atan(coef/2 * tan(f/2)) / atan(coef/2 * tan(F/2))
+// At slider = 1.0, AIM_BASE ≈ 9.6e-4 rad/count ≈ BFV "Soldier sens 25" with the
+// series-standard 0.0022°/count yaw constant.
+const AIM_BASE      = 9.6e-4;
+const AIM_COEF      = 1.333;
+const AIM_PITCH_MUL = 1.0;     // BFV applies the same scalar to both axes by default
 const AIM_USER_MIN  = 0.2;
 const AIM_USER_MAX  = 2.0;
-// User-facing 0.2..2.0 multiplier set via lobby slider, persisted to localStorage.
+// User-facing 0.2..2.0 multiplier set via the in-game slider, persisted to localStorage.
 let aimUserMul = (() => {
   const v = parseFloat(localStorage.getItem('aimSens'));
   return (Number.isFinite(v) && v > 0) ? Math.max(AIM_USER_MIN, Math.min(AIM_USER_MAX, v)) : 1.0;
 })();
+let _aimHipDenom = 1;
+function recomputeAimHipDenom() {
+  const F = HIP_FOV * Math.PI / 180;
+  _aimHipDenom = Math.atan(AIM_COEF * 0.5 * Math.tan(F * 0.5));
+}
+recomputeAimHipDenom();
+function zoomScaleForFov(fovDeg) {
+  const f = fovDeg * Math.PI / 180;
+  return Math.atan(AIM_COEF * 0.5 * Math.tan(f * 0.5)) / _aimHipDenom;
+}
+function setAimSensitivity(v, source) {
+  if (!Number.isFinite(v)) return;
+  aimUserMul = Math.max(AIM_USER_MIN, Math.min(AIM_USER_MAX, v));
+  try { localStorage.setItem('aimSens', String(aimUserMul)); } catch {}
+  const pct = Math.round(aimUserMul * 100) + '%';
+  if (source !== 'ingame') {
+    const s = $('set-sens'); if (s) { s.value = String(aimUserMul); const v = $('set-sens-val'); if (v) v.textContent = pct; }
+  }
+}
 const _aimEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 const _PI_2 = Math.PI / 2;
 
@@ -460,6 +534,7 @@ function setupLobby() {
   });
 
   setupGfxUI();
+  setAimSensitivity(aimUserMul, 'init');
 }
 
 function setupGfxUI() {
@@ -479,15 +554,9 @@ function setupGfxUI() {
   });
 
   const sensSlider = $('set-sens');
-  const sensVal = $('set-sens-val');
-  sensSlider.value = String(aimUserMul);
-  sensVal.textContent = Math.round(aimUserMul * 100) + '%';
+  setAimSensitivity(aimUserMul, 'init'); // initialize both sliders/labels from stored value
   sensSlider.addEventListener('input', () => {
-    const v = parseFloat(sensSlider.value);
-    if (!Number.isFinite(v)) return;
-    aimUserMul = Math.max(AIM_USER_MIN, Math.min(AIM_USER_MAX, v));
-    sensVal.textContent = Math.round(aimUserMul * 100) + '%';
-    localStorage.setItem('aimSens', String(aimUserMul));
+    setAimSensitivity(parseFloat(sensSlider.value), 'ingame');
   });
 
   $('settings-btn').addEventListener('click', () => toggleSettings());
@@ -502,6 +571,9 @@ function toggleSettings(forceOpen) {
     if (controls && controls.isLocked) controls.unlock();
   } else {
     panel.classList.add('hidden');
+  }
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ type: 'menu', open: willOpen }));
   }
 }
 
@@ -612,23 +684,24 @@ function initThree() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.25;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a2230);
-  scene.fog = new THREE.FogExp2(0x111720, 0.018);
+  // Bright midday sky and lifted fog so distance reads as daylight haze, not dusk
+  scene.background = new THREE.Color(0x9ac6ff);
+  scene.fog = new THREE.FogExp2(0xcfe2ff, 0.0085);
 
   camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.04, 220);
   camera.position.set(spawnPos[0], 1.6, spawnPos[2]);
 
-  // Lights: sun-style directional with shadow map, dim hemi fill, gentle ambient
-  const hemi = new THREE.HemisphereLight(0x8aa6d4, 0x1c1a14, 0.45);
+  // Lights: blown-out midday sun + bright sky hemi so the arena reads as outdoors
+  const hemi = new THREE.HemisphereLight(0xbfdcff, 0x6a5d44, 1.35);
   hemi.position.set(0, 50, 0);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff1d6, 1.85);
+  const sun = new THREE.DirectionalLight(0xfff4d6, 3.4);
   sun.position.set(28, 48, 18);
   sun.target.position.set(0, 0, 0);
   sun.castShadow = true;
@@ -646,44 +719,102 @@ function initThree() {
   scene.add(sun);
   scene.add(sun.target);
 
-  const ambient = new THREE.AmbientLight(0x2a3346, 0.35);
+  // Lift the floor so the entire scene feels bright, not just sunlit faces
+  const ambient = new THREE.AmbientLight(0xb8cfee, 0.85);
   scene.add(ambient);
 
-  // Cool rim/back fill so shadowed sides don't go pitch black
-  const rim = new THREE.DirectionalLight(0x6688ff, 0.35);
+  // Warm bounce light from the "ground" opposite the sun, plus a cool back-fill
+  const bounce = new THREE.DirectionalLight(0xffd8a0, 0.55);
+  bounce.position.set(-20, 10, -30);
+  scene.add(bounce);
+  const rim = new THREE.DirectionalLight(0x9fc6ff, 0.45);
   rim.position.set(-30, 18, -20);
   scene.add(rim);
 
-  // Floor: rougher, anisotropic filtering for sharper grazing-angle detail
-  const floorTex = makeCheckerTexture(0x2a3140, 0x232934, 32);
+  // Floor: vaporwave checkered marble
+  const floorTex = makeCheckerMarbleTexture();
   floorTex.colorSpace = THREE.SRGBColorSpace;
   const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 1;
-  floorTex.anisotropy = Math.min(8, maxAniso);
+  floorTex.anisotropy = Math.min(16, maxAniso);
   floorTex.minFilter = THREE.LinearMipMapLinearFilter;
   floorTex.magFilter = THREE.LinearFilter;
   floorTex.generateMipmaps = true;
+  // One canvas = 2x2 marble tiles; repeat 7 times → 14 marble squares per side of the floor
+  floorTex.repeat.set(7, 7);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(mapHalf * 2, mapHalf * 2),
-    new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.92, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.45, metalness: 0.18 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   scene.add(floor);
 
-  // Walls: concrete-ish, cast + receive shadows
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x3a4253, roughness: 0.85, metalness: 0.08 });
+  // Walls / platforms / stairs: concrete with vaporwave lavender wash.
+  // Per-piece texture clones so UV density stays consistent across different sizes.
+  const concreteBase = makeConcreteTexture();
+  const wallTint = { wall: 0xe6dcff, platform: 0xf0e2ff, stair: 0xd8ccf0 };
+  const wallRough = { wall: 0.92, platform: 0.78, stair: 0.84 };
+  const wallMetal = { wall: 0.05, platform: 0.10, stair: 0.07 };
   for (const w of walls) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w.w, 3, w.d), wallMat);
-    m.position.set(w.x, 1.5, w.z);
+    const wy = w.y ?? 1.5;
+    const wh = w.h ?? 3;
+    const kind = w.kind || 'wall';
+    const tex = concreteBase.clone();
+    tex.needsUpdate = true;
+    // ~2.5 world units per texture tile, with at least 1 repeat
+    tex.repeat.set(Math.max(1, Math.round(Math.max(w.w, w.d) / 2.5)), Math.max(1, Math.round(wh / 2.5)));
+    tex.anisotropy = Math.min(8, maxAniso);
+    tex.minFilter = THREE.LinearMipMapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    const mat = new THREE.MeshStandardMaterial({
+      map: tex,
+      color: wallTint[kind],
+      roughness: wallRough[kind],
+      metalness: wallMetal[kind],
+    });
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w.w, wh, w.d), mat);
+    m.position.set(w.x, wy, w.z);
     m.castShadow = true;
     m.receiveShadow = true;
     scene.add(m);
   }
 
+  // Vaporwave palm trees scattered around the perimeter
+  const palmSpots = [
+    [-26, -26, 1.10], [ 26, -26, 1.05], [-26,  26, 0.96], [ 26,  26, 1.08],
+    [-26,   0, 0.92], [ 26,   0, 1.00], [  0, -26, 1.05], [  0,  26, 0.98],
+    [-26, -14, 0.90], [ 26,  14, 0.96], [-14, -26, 1.02], [ 14,  26, 0.94],
+  ];
+  for (const [px, pz, ps] of palmSpots) {
+    const palm = makePalmTree(ps);
+    palm.position.set(px, 0, pz);
+    palm.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(palm);
+  }
+
   // Sky shell: unlit, fog-blended
-  const farMat = new THREE.MeshBasicMaterial({ color: 0x0d1218, side: THREE.BackSide, fog: false });
+  const farMat = new THREE.MeshBasicMaterial({ color: 0xbcd8ff, side: THREE.BackSide, fog: true });
   const sky = new THREE.Mesh(new THREE.BoxGeometry(220, 120, 220), farMat);
   scene.add(sky);
+
+  // Visible sun disc + soft glow halo, placed along the directional light's direction
+  const sunOffset = new THREE.Vector3(28, 48, 18).normalize().multiplyScalar(95);
+  const sunDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(5, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfff6d0, fog: false, transparent: true, opacity: 0.98, depthWrite: false })
+  );
+  sunDisc.position.copy(sunOffset);
+  sunDisc.lookAt(0, sunOffset.y, 0);
+  sunDisc.renderOrder = -1;
+  scene.add(sunDisc);
+  const sunGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(14, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffe8a8, fog: false, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  sunGlow.position.copy(sunOffset);
+  sunGlow.lookAt(0, sunOffset.y, 0);
+  sunGlow.renderOrder = -2;
+  scene.add(sunGlow);
 
   // Post-processing: SSAO for ambient occlusion + filmic output
   composer = new EffectComposer(renderer);
@@ -916,6 +1047,269 @@ function makeCheckerTexture(c1, c2, size) {
   return tex;
 }
 
+// ============ VAPORWAVE TEXTURES ============
+function drawMarbleTile(ctx, ox, oy, size, light) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(ox, oy, size, size);
+  ctx.clip();
+  const grad = ctx.createLinearGradient(ox, oy, ox + size, oy + size);
+  if (light) {
+    grad.addColorStop(0, '#f7e9f3');
+    grad.addColorStop(0.5, '#ffe4ef');
+    grad.addColorStop(1, '#ead8ed');
+  } else {
+    grad.addColorStop(0, '#27143a');
+    grad.addColorStop(0.5, '#3c1e55');
+    grad.addColorStop(1, '#1d0d2a');
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(ox, oy, size, size);
+  for (let i = 0; i < 14; i++) {
+    const cx = ox + Math.random() * size, cy = oy + Math.random() * size;
+    const r = size * (0.08 + Math.random() * 0.22);
+    const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    rg.addColorStop(0, light ? 'rgba(255,240,250,0.22)' : 'rgba(180,120,210,0.22)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(ox, oy, size, size);
+  }
+  function wander(strokeStyle, lineWidth, count, step, segs, jitter) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = lineWidth;
+    for (let i = 0; i < count; i++) {
+      ctx.beginPath();
+      let x = ox + Math.random() * size, y = oy + Math.random() * size;
+      ctx.moveTo(x, y);
+      let angle = Math.random() * Math.PI * 2;
+      for (let s = 0; s < segs; s++) {
+        angle += (Math.random() - 0.5) * jitter;
+        x += Math.cos(angle) * step;
+        y += Math.sin(angle) * step;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+  wander(light ? 'rgba(170,100,180,0.48)' : 'rgba(255,190,230,0.38)', 1.4, 7, 7, 50, 0.5);
+  wander(light ? 'rgba(60,20,90,0.32)' : 'rgba(255,230,245,0.22)', 0.6, 5, 5, 30, 0.7);
+  ctx.restore();
+}
+
+function makeCheckerMarbleTexture() {
+  const size = 1024, half = size / 2;
+  const cnv = document.createElement('canvas');
+  cnv.width = cnv.height = size;
+  const ctx = cnv.getContext('2d');
+  drawMarbleTile(ctx, 0, 0, half, true);
+  drawMarbleTile(ctx, half, half, half, true);
+  drawMarbleTile(ctx, half, 0, half, false);
+  drawMarbleTile(ctx, 0, half, half, false);
+  const tex = new THREE.CanvasTexture(cnv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeConcreteTexture() {
+  const size = 512;
+  const cnv = document.createElement('canvas');
+  cnv.width = cnv.height = size;
+  const ctx = cnv.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, size);
+  grad.addColorStop(0, '#d4cee0');
+  grad.addColorStop(1, '#b8b0c8');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const img = ctx.getImageData(0, 0, size, size);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 30;
+    d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+    d[i+1] = Math.max(0, Math.min(255, d[i+1] + n * 0.9));
+    d[i+2] = Math.max(0, Math.min(255, d[i+2] + n * 1.1));
+  }
+  ctx.putImageData(img, 0, 0);
+  for (let i = 0; i < 22; i++) {
+    const cx = Math.random() * size, cy = Math.random() * size;
+    const r = 25 + Math.random() * 75;
+    const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    rg.addColorStop(0, Math.random() < 0.5 ? 'rgba(140,125,160,0.30)' : 'rgba(225,215,240,0.26)');
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, size, size);
+  }
+  ctx.strokeStyle = 'rgba(100, 80, 120, 0.18)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const y = Math.floor(Math.random() * size);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(size, y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(50, 40, 70, 0.42)';
+  for (let i = 0; i < 80; i++) {
+    ctx.beginPath();
+    ctx.arc(Math.random() * size, Math.random() * size, 0.8 + Math.random() * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(80, 60, 100, 0.32)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    let x = Math.random() * size, y = Math.random() * size;
+    ctx.moveTo(x, y);
+    let angle = Math.random() * Math.PI * 2;
+    for (let s = 0; s < 24; s++) {
+      angle += (Math.random() - 0.5) * 0.9;
+      x += Math.cos(angle) * 4;
+      y += Math.sin(angle) * 4;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cnv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// ============ PALM TREES ============
+let _palmFrondTex = null, _palmTrunkTex = null;
+function getPalmFrondTexture() {
+  if (_palmFrondTex) return _palmFrondTex;
+  const W = 256, H = 64;
+  const cnv = document.createElement('canvas');
+  cnv.width = W; cnv.height = H;
+  const ctx = cnv.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = '#4a6a3a';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(4, H / 2); ctx.lineTo(W - 4, H / 2); ctx.stroke();
+  const greenA = '#5ec24c', greenB = '#3e8c33';
+  const count = 28;
+  for (let i = 0; i < count; i++) {
+    const t = i / count;
+    const x = 6 + t * (W - 12);
+    const len = H * 0.45 * (Math.sin(t * Math.PI) * 0.85 + 0.15);
+    ctx.fillStyle = i % 2 === 0 ? greenA : greenB;
+    ctx.beginPath();
+    ctx.moveTo(x, H / 2);
+    ctx.lineTo(x + len * 0.35, H / 2 - len);
+    ctx.lineTo(x + len * 0.15, H / 2 - len * 0.92);
+    ctx.lineTo(x - 1, H / 2 - 1);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = i % 2 === 0 ? greenB : greenA;
+    ctx.beginPath();
+    ctx.moveTo(x, H / 2);
+    ctx.lineTo(x + len * 0.35, H / 2 + len);
+    ctx.lineTo(x + len * 0.15, H / 2 + len * 0.92);
+    ctx.lineTo(x - 1, H / 2 + 1);
+    ctx.closePath(); ctx.fill();
+  }
+  _palmFrondTex = new THREE.CanvasTexture(cnv);
+  _palmFrondTex.colorSpace = THREE.SRGBColorSpace;
+  _palmFrondTex.minFilter = THREE.LinearMipMapLinearFilter;
+  _palmFrondTex.magFilter = THREE.LinearFilter;
+  _palmFrondTex.generateMipmaps = true;
+  return _palmFrondTex;
+}
+
+function getPalmTrunkTexture() {
+  if (_palmTrunkTex) return _palmTrunkTex;
+  const W = 64, H = 256;
+  const cnv = document.createElement('canvas');
+  cnv.width = W; cnv.height = H;
+  const ctx = cnv.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#9b7553');
+  grad.addColorStop(0.5, '#c4a07a');
+  grad.addColorStop(1, '#8c6a4a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(70, 48, 30, 0.55)';
+  ctx.lineWidth = 1.6;
+  const bands = 14;
+  for (let i = 0; i < bands; i++) {
+    const y = (i + 0.5) * (H / bands) + (Math.random() - 0.5) * 3;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    for (let x = 0; x < W; x += 2) {
+      ctx.lineTo(x, y + Math.sin((x + i * 5) * 0.15) * 1.5);
+    }
+    ctx.stroke();
+  }
+  const img = ctx.getImageData(0, 0, W, H);
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const n = (Math.random() - 0.5) * 22;
+    d[i]   = Math.max(0, Math.min(255, d[i]   + n));
+    d[i+1] = Math.max(0, Math.min(255, d[i+1] + n * 0.9));
+    d[i+2] = Math.max(0, Math.min(255, d[i+2] + n * 0.8));
+  }
+  ctx.putImageData(img, 0, 0);
+  _palmTrunkTex = new THREE.CanvasTexture(cnv);
+  _palmTrunkTex.wrapS = THREE.RepeatWrapping;
+  _palmTrunkTex.wrapT = THREE.ClampToEdgeWrapping;
+  _palmTrunkTex.colorSpace = THREE.SRGBColorSpace;
+  return _palmTrunkTex;
+}
+
+function makePalmTree(scale = 1) {
+  const g = new THREE.Group();
+  const trunkH = 5.5 * scale;
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.20 * scale, 0.30 * scale, trunkH, 10, 8),
+    new THREE.MeshStandardMaterial({ map: getPalmTrunkTexture(), roughness: 0.95, metalness: 0.04 })
+  );
+  trunk.position.y = trunkH / 2;
+  trunk.castShadow = true;
+  trunk.receiveShadow = true;
+  g.add(trunk);
+  const cocoMat = new THREE.MeshStandardMaterial({ color: 0x5a3320, roughness: 0.85 });
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const coco = new THREE.Mesh(new THREE.SphereGeometry(0.14 * scale, 8, 6), cocoMat);
+    coco.position.set(Math.cos(a) * 0.28 * scale, trunkH - 0.05 * scale, Math.sin(a) * 0.28 * scale);
+    coco.castShadow = true;
+    g.add(coco);
+  }
+  const frondMat = new THREE.MeshStandardMaterial({
+    map: getPalmFrondTexture(),
+    transparent: true, alphaTest: 0.4,
+    side: THREE.DoubleSide, roughness: 0.85, metalness: 0.0,
+  });
+  frondMat.shadowSide = THREE.DoubleSide;
+  const frondCount = 9;
+  const frondLen = 3.2 * scale, frondWid = 0.9 * scale;
+  for (let i = 0; i < frondCount; i++) {
+    const angle = (i / frondCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+    const tiltAmt = -Math.PI / 7 + (Math.random() - 0.5) * 0.2;
+    const azim = new THREE.Group();
+    azim.position.set(0, trunkH, 0);
+    azim.rotation.y = angle;
+    g.add(azim);
+    const tilt = new THREE.Group();
+    tilt.rotation.z = tiltAmt;
+    azim.add(tilt);
+    const geom = new THREE.PlaneGeometry(frondLen, frondWid, 8, 1);
+    const pos = geom.attributes.position;
+    for (let v = 0; v < pos.count; v++) {
+      const x = pos.getX(v);
+      const t = Math.max(0, (x + frondLen / 2) / frondLen);
+      pos.setZ(v, pos.getZ(v) - t * t * 0.5 * scale);
+    }
+    pos.needsUpdate = true;
+    geom.computeVertexNormals();
+    const frond = new THREE.Mesh(geom, frondMat);
+    frond.rotation.x = -Math.PI / 2;
+    frond.position.x = frondLen / 2;
+    frond.castShadow = true;
+    tilt.add(frond);
+  }
+  return g;
+}
+
+
 // =========================== INPUT ===========================
 function onKeyDown(e) {
   if (!inGame) return;
@@ -957,11 +1351,31 @@ function onKeyDown(e) {
   }
   keys[e.code] = true;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') isSprinting = true;
-  if (e.code === 'Space' && onGround && !keys._jumpUsed) {
-    velocityY = 5.2;
-    onGround = false;
+  if (e.code === 'Space' && !keys._jumpUsed) {
     keys._jumpUsed = true;
-    playSound('jump');
+    if (mState === 'wallrun') {
+      doWallJump();
+    } else if (mState === 'sliding') {
+      // Slide-jump: cancel slide and launch with the slide momentum
+      extraVel.x = slideVel.x * 0.85;
+      extraVel.z = slideVel.z * 0.85;
+      slideVel.set(0, 0, 0);
+      velocityY = SLIDE_JUMP_VY;
+      mState = 'airborne';
+      onGround = false;
+      slideCD = SLIDE_COOLDOWN;
+      playSound('jump');
+    } else if (onGround) {
+      velocityY = 5.2;
+      onGround = false;
+      mState = 'airborne';
+      playSound('jump');
+    }
+  }
+  // Slide: C (primary) or LeftControl (alternate). Triggers while sprinting on the ground.
+  if ((e.code === 'KeyC' || e.code === 'ControlLeft') && isSprinting) {
+    e.preventDefault();
+    tryEnterSlide();
   }
   if (e.code === 'KeyR') {
     ws && ws.send(JSON.stringify({ type: 'reload' }));
@@ -1010,29 +1424,150 @@ function onWheel(e) {
   switchWeapon(next);
 }
 
-// Battlefield-style aim sensitivity.
-// Curve: yaw/pitch delta = sign(d) * (|mag|^EXP) * SCALE * (d / mag) * adsMul
-// — i.e. apply the power curve to total per-event magnitude, then split along the
-// movement vector so direction is preserved. EXP > 1 means slow nudges (small mag)
-// translate to *less* turn per pixel than fast flicks, allowing both precision and
-// fast 180s. ADS multiplies the whole thing by AIM_ADS_MUL (interp'd via adsT so the
-// scale change is continuous as the FOV zooms in).
 function onAimMove(e) {
   if (!inGame || !controls || !controls.isLocked) return;
-  const mx = e.movementX || 0;
-  const my = e.movementY || 0;
-  const mag = Math.hypot(mx, my);
-  if (mag < AIM_MIN_MAG) return;
-  const curveMag = Math.pow(mag, AIM_EXPONENT) * AIM_SCALE * aimUserMul;
-  // smoothly blend hip→ADS multiplier with adsT
-  const adsMul = 1 + (AIM_ADS_MUL - 1) * adsT;
-  const ux = (mx / mag) * curveMag * adsMul;
-  const uy = (my / mag) * curveMag * adsMul * AIM_PITCH_MUL;
+  const dx = e.movementX || 0;
+  const dy = e.movementY || 0;
+  if (!dx && !dy) return;
+  // BFV Uniform Soldier Aiming: linear per-axis, scaled by FOV-aware zoom factor so
+  // the on-screen target velocity stays consistent between hipfire and ADS.
+  const k = AIM_BASE * aimUserMul * zoomScaleForFov(camera.fov);
   _aimEuler.setFromQuaternion(camera.quaternion);
-  _aimEuler.y -= ux;
-  _aimEuler.x -= uy;
+  _aimEuler.y -= dx * k;
+  _aimEuler.x -= dy * k * AIM_PITCH_MUL;
   _aimEuler.x = Math.max(-_PI_2, Math.min(_PI_2, _aimEuler.x));
   camera.quaternion.setFromEuler(_aimEuler);
+}
+
+// ----- Helpers for advanced movement -----
+function camForwardFlat(out) {
+  camera.getWorldDirection(out);
+  out.y = 0;
+  const l = out.length();
+  if (l < 1e-4) { out.set(0, 0, -1); return out; }
+  return out.divideScalar(l);
+}
+
+// Helpers for 3D wall data (y/h optional, defaults: y=1.5, h=3)
+function wY(w) { return w.y == null ? 1.5 : w.y; }
+function wH(w) { return w.h == null ? 3 : w.h; }
+function wTop(w) { return wY(w) + wH(w) / 2; }
+function wBot(w) { return wY(w) - wH(w) / 2; }
+
+// Highest surface (box-top) the player can stand on at XZ, given current feet-Y.
+// Returns 0 (floor) if nothing applies.
+const PLAYER_FOOT_R = 0.35;
+const PLAYER_STEP_H = 0.55;
+function groundHeightAt(x, z, feetY) {
+  let g = 0;
+  for (const w of walls) {
+    const dx = Math.abs(x - w.x), dz = Math.abs(z - w.z);
+    if (dx > w.w / 2 + PLAYER_FOOT_R || dz > w.d / 2 + PLAYER_FOOT_R) continue;
+    const top = wTop(w);
+    if (top <= feetY + 0.4 && top > g) g = top;
+  }
+  return g;
+}
+
+// Find the closest wall AABB to a point in XZ. Returns the contact info or null.
+// Skips short platforms / stairs so wall-running only latches onto tall walls.
+function findWallContact(pos, reach) {
+  let best = null, bestDist = reach;
+  for (let i = 0; i < walls.length; i++) {
+    const w = walls[i];
+    if (wTop(w) < pos.y - 0.2) continue; // too short — can't wall-run on it
+    if (wBot(w) > pos.y + 0.5) continue; // entirely above player head
+    const hx = w.w / 2, hd = w.d / 2;
+    const cx = Math.max(w.x - hx, Math.min(w.x + hx, pos.x));
+    const cz = Math.max(w.z - hd, Math.min(w.z + hd, pos.z));
+    const dx = pos.x - cx, dz = pos.z - cz;
+    const d = Math.hypot(dx, dz);
+    if (d > 0.02 && d < bestDist) {
+      bestDist = d;
+      best = { id: i, w, dist: d, nx: dx / d, nz: dz / d };
+    }
+  }
+  return best;
+}
+
+function tryEnterSlide() {
+  if (mState !== 'ground' || !onGround) return;
+  if (slideCD > 0) return;
+  if (!(keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'])) return;
+  // Direction: world-space horizontal movement intent (matches WASD), so sliding while
+  // strafing slides sideways. Falls back to camera-forward if no input.
+  const fwd = camForwardFlat(new THREE.Vector3());
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const dir = new THREE.Vector3();
+  if (keys['KeyW']) dir.add(fwd);
+  if (keys['KeyS']) dir.sub(fwd);
+  if (keys['KeyD']) dir.add(right);
+  if (keys['KeyA']) dir.sub(right);
+  if (dir.lengthSq() < 0.01) dir.copy(fwd);
+  dir.normalize();
+  slideVel.copy(dir).multiplyScalar(SLIDE_BOOST);
+  mState = 'sliding';
+  slideT = SLIDE_MAX_T;
+}
+
+function exitSlide() {
+  if (mState !== 'sliding') return;
+  mState = onGround ? 'ground' : 'airborne';
+  slideCD = SLIDE_COOLDOWN;
+  // Hand off remaining slide velocity as transient momentum
+  extraVel.x = slideVel.x * 0.4;
+  extraVel.z = slideVel.z * 0.4;
+  slideVel.set(0, 0, 0);
+}
+
+function tryEnterWallRun() {
+  if (mState !== 'airborne') return;
+  if (wallRunCD > 0) return;
+  if (camera.position.y < VIEW_HEIGHT + WALL_RUN_MIN_Y) return; // need clearance from floor
+  if (!(keys['KeyW'] || keys['KeyA'] || keys['KeyD'])) return; // need directional intent
+  const c = findWallContact(camera.position, WALL_REACH);
+  if (!c) return;
+  const fwd = camForwardFlat(new THREE.Vector3());
+  // c.n* is the wall normal pointing AWAY from the wall toward the player. We need
+  // fwd · normal < 0 (i.e. forward is into the wall) to qualify as a wall-run entry.
+  const dotN = fwd.x * c.nx + fwd.z * c.nz;
+  if (dotN > -0.1) return;
+  // Tangent = fwd - (fwd·n)·n  (component of forward along the wall plane)
+  const tx = fwd.x - dotN * c.nx;
+  const tz = fwd.z - dotN * c.nz;
+  const tl = Math.hypot(tx, tz);
+  if (tl < 0.15) return; // pure head-on hit, no along-wall direction
+  wallRunNormal.set(c.nx, 0, c.nz);
+  wallRunTangent.set(tx / tl, 0, tz / tl);
+  wallRunWallId = c.id;
+  mState = 'wallrun';
+  wallRunT = WALL_RUN_MAX_T;
+  if (velocityY < 0) velocityY = 0;
+  // Visual tilt: wall on our left → head leans left (positive roll).
+  // The wall is on the player's left when the wall normal points to the player's right
+  // (right · normal > 0).
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const wallOnLeft = (right.x * c.nx + right.z * c.nz) > 0;
+  camRollTarget = wallOnLeft ? WALL_TILT : -WALL_TILT;
+  playSound('jump', 0.18);
+}
+
+function exitWallRun() {
+  if (mState !== 'wallrun') return;
+  mState = 'airborne';
+  wallRunCD = WALL_RUN_COOLDOWN;
+  camRollTarget = 0;
+}
+
+function doWallJump() {
+  if (mState !== 'wallrun') return;
+  const fwd = camForwardFlat(new THREE.Vector3());
+  // Push away from wall + small forward bias + upward
+  extraVel.x = wallRunNormal.x * WALL_JUMP_PUSH + fwd.x * WALL_JUMP_FWD;
+  extraVel.z = wallRunNormal.z * WALL_JUMP_PUSH + fwd.z * WALL_JUMP_FWD;
+  velocityY = WALL_JUMP_UP;
+  exitWallRun();
+  playSound('jump');
 }
 
 function switchWeapon(name) {
@@ -1080,49 +1615,154 @@ function animate(t) {
   const me = lastTickMsg ? lastTickMsg.players.find(p => p.id === myId) : null;
   const alive = !me || me.hp > 0;
 
-  // Remove last frame's head-bob so physics reads the clean feet-y
-  camera.position.y -= lastBobY;
+  // Remove last frame's render-only y offsets (bob + slide view-height) so physics
+  // reads the clean feet-y.
+  camera.position.y -= lastBobY + lastViewOffset;
   lastBobY = 0;
+  lastViewOffset = 0;
 
   if (controls.isLocked && alive) {
-    const baseSpeed = isSprinting ? 8.5 : 5.5;
-    const fwd = new THREE.Vector3();
-    const right = new THREE.Vector3();
-    if (keys['KeyW']) fwd.z -= 1;
-    if (keys['KeyS']) fwd.z += 1;
-    if (keys['KeyA']) right.x -= 1;
-    if (keys['KeyD']) right.x += 1;
-    const move = new THREE.Vector3(right.x, 0, fwd.z);
-    if (move.lengthSq() > 0) {
-      move.normalize().multiplyScalar(baseSpeed * dt);
-      controls.moveRight(move.x);
-      controls.moveForward(-move.z);
+    const p = camera.position;
+
+    // Decay transient momentum (wall-jump / slide-jump kickback)
+    if (extraVel.lengthSq() > 0.001) {
+      p.x += extraVel.x * dt;
+      p.z += extraVel.z * dt;
+      const decay = Math.max(0, 1 - EXTRA_DECAY * dt);
+      extraVel.multiplyScalar(decay);
+    } else {
+      extraVel.set(0, 0, 0);
     }
 
-    // Wall collision (XZ)
-    const p = camera.position;
-    for (let iter = 0; iter < 3; iter++) {
-      let collided = false;
-      for (const w of walls) {
-        const r = 0.4;
-        const dx = p.x - w.x, dz = p.z - w.z;
-        const hx = w.w / 2 + r, hz = w.d / 2 + r;
-        if (Math.abs(dx) > hx || Math.abs(dz) > hz) continue;
-        const oxv = hx - Math.abs(dx);
-        const ozv = hz - Math.abs(dz);
-        if (oxv < ozv) p.x += Math.sign(dx || 1) * oxv;
-        else p.z += Math.sign(dz || 1) * ozv;
-        collided = true;
+    if (mState === 'sliding') {
+      // Apply slide velocity; ignore WASD input
+      p.x += slideVel.x * dt;
+      p.z += slideVel.z * dt;
+      // Friction
+      const sp = slideVel.length();
+      const newSp = Math.max(0, sp - SLIDE_FRICTION * dt);
+      if (sp > 0.001) slideVel.multiplyScalar(newSp / sp);
+      slideT -= dt;
+      // Sliding does not float — apply gravity (so we can slide off ledges into airborne)
+      velocityY -= 14 * dt;
+      p.y += velocityY * dt;
+      {
+        const gY = groundHeightAt(p.x, p.z, p.y - VIEW_HEIGHT);
+        if (p.y <= gY + VIEW_HEIGHT) { p.y = gY + VIEW_HEIGHT; velocityY = 0; onGround = true; }
+        else { onGround = false; }
       }
-      if (!collided) break;
+      // Exit conditions: timer up, too slow, or in the air with no floor contact
+      if (slideT <= 0 || newSp < SLIDE_MIN_SPD) exitSlide();
+    } else if (mState === 'wallrun') {
+      // Move along the wall tangent
+      p.x += wallRunTangent.x * WALL_RUN_SPEED * dt;
+      p.z += wallRunTangent.z * WALL_RUN_SPEED * dt;
+      // Maintain stick distance to the wall
+      const c = findWallContact(p, WALL_REACH + 0.4);
+      if (c && c.id === wallRunWallId) {
+        // Damped pull toward stick distance (avoids oscillation at variable framerate)
+        const drift = (c.dist - WALL_STICK) * Math.min(1, dt * 12);
+        p.x -= c.nx * drift;
+        p.z -= c.nz * drift;
+        wallRunNormal.set(c.nx, 0, c.nz);
+      } else {
+        // Lost contact — drop back to airborne
+        exitWallRun();
+      }
+      // Reduced gravity
+      velocityY -= WALL_RUN_GRAV * dt;
+      p.y += velocityY * dt;
+      // Timer and exit conditions
+      wallRunT -= dt;
+      const wantTangent = (keys['KeyW'] || keys['KeyA'] || keys['KeyD']);
+      if (wallRunT <= 0 || !wantTangent) exitWallRun();
+      {
+        const gY = groundHeightAt(p.x, p.z, p.y - VIEW_HEIGHT);
+        if (p.y <= gY + VIEW_HEIGHT) {
+          p.y = gY + VIEW_HEIGHT; velocityY = 0; onGround = true;
+          exitWallRun(); mState = 'ground';
+        }
+      }
+    } else {
+      // 'ground' or 'airborne': WASD with full speed (classic air-strafe)
+      const baseSpeed = isSprinting ? 8.5 : 5.5;
+      const fwd = new THREE.Vector3();
+      const right = new THREE.Vector3();
+      if (keys['KeyW']) fwd.z -= 1;
+      if (keys['KeyS']) fwd.z += 1;
+      if (keys['KeyA']) right.x -= 1;
+      if (keys['KeyD']) right.x += 1;
+      const move = new THREE.Vector3(right.x, 0, fwd.z);
+      if (move.lengthSq() > 0) {
+        move.normalize().multiplyScalar(baseSpeed * dt);
+        controls.moveRight(move.x);
+        controls.moveForward(-move.z);
+      }
+      velocityY -= 14 * dt;
+      p.y += velocityY * dt;
+      {
+        const gY = groundHeightAt(p.x, p.z, p.y - VIEW_HEIGHT);
+        if (p.y <= gY + VIEW_HEIGHT) {
+          p.y = gY + VIEW_HEIGHT; velocityY = 0;
+          if (!onGround) { onGround = true; mState = 'ground'; }
+        } else if (onGround) {
+          onGround = false;
+          if (mState === 'ground') mState = 'airborne';
+        }
+      }
+    }
+
+    // Shared XZ wall collision — 3D-aware (skips walls that don't overlap player
+    // body vertically) and auto-steps onto short surfaces (stairs / ledges).
+    if (mState !== 'wallrun') {
+      for (let iter = 0; iter < 3; iter++) {
+        let collided = false;
+        for (const w of walls) {
+          const wt = wTop(w), wb = wBot(w);
+          const feetY = p.y - VIEW_HEIGHT;
+          const headY = p.y;
+          // Skip walls entirely below feet (we can stand on these) or above head (pass under)
+          if (wt <= feetY + 1e-3) continue;
+          if (wb >= headY - 1e-3) continue;
+          const r = 0.4;
+          const dx = p.x - w.x, dz = p.z - w.z;
+          const hx = w.w / 2 + r, hz = w.d / 2 + r;
+          if (Math.abs(dx) > hx || Math.abs(dz) > hz) continue;
+          // Auto-step: short ledges raise the player onto the surface instead of blocking
+          if (onGround && wt - feetY <= PLAYER_STEP_H) {
+            p.y = wt + VIEW_HEIGHT;
+            velocityY = 0;
+            collided = true;
+            continue;
+          }
+          const oxv = hx - Math.abs(dx);
+          const ozv = hz - Math.abs(dz);
+          if (oxv < ozv) p.x += Math.sign(dx || 1) * oxv;
+          else p.z += Math.sign(dz || 1) * ozv;
+          collided = true;
+        }
+        if (!collided) break;
+      }
     }
     p.x = Math.max(-mapHalf + 0.5, Math.min(mapHalf - 0.5, p.x));
     p.z = Math.max(-mapHalf + 0.5, Math.min(mapHalf - 0.5, p.z));
 
-    // Gravity / jump
-    velocityY -= 14 * dt;
-    p.y += velocityY * dt;
-    if (p.y <= 1.6) { p.y = 1.6; velocityY = 0; onGround = true; }
+    // After collision has settled the position, check whether we can latch onto a wall.
+    if (mState === 'airborne') tryEnterWallRun();
+
+    // Cooldowns
+    if (slideCD > 0) slideCD = Math.max(0, slideCD - dt);
+    if (wallRunCD > 0) wallRunCD = Math.max(0, wallRunCD - dt);
+
+    // Eye height (lower during slide, smooth lerp toward target)
+    const targetH = mState === 'sliding' ? SLIDE_HEIGHT : VIEW_HEIGHT;
+    viewHeight += (targetH - viewHeight) * Math.min(1, dt * 14);
+
+    // Camera roll for wall-run (read-modify-write the quaternion preserving aim Y/X)
+    camRoll += (camRollTarget - camRoll) * Math.min(1, dt * 10);
+    const rollEuler = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+    rollEuler.z = camRoll;
+    camera.quaternion.setFromEuler(rollEuler);
 
     // Auto-fire while LMB held — only for weapons flagged auto
     if (mouseDown && WEAPON_VIEW[currentWeapon].auto) doShoot();
@@ -1143,6 +1783,10 @@ function animate(t) {
   // Apply head bob to camera (Y only — X sway is reserved for weapon)
   camera.position.y += bobY;
   lastBobY = bobY;
+  // Apply slide view-height offset (lower camera when sliding); stripped next frame.
+  const viewOffset = viewHeight - VIEW_HEIGHT;
+  camera.position.y += viewOffset;
+  lastViewOffset = viewOffset;
 
   // Recoil decay
   weaponRecoil = Math.max(0, weaponRecoil - dt * 7.5);
@@ -1574,7 +2218,7 @@ function processTick(msg) {
       op.head.material.color.setHex(col);
       op.color = col;
     }
-    op.target.set(p.pos[0], 0, p.pos[2]);
+    op.target.set(p.pos[0], (p.pos[1] || VIEW_HEIGHT) - VIEW_HEIGHT, p.pos[2]);
     op.group.rotation.y = p.yaw;
     op.group.visible = p.hp > 0;
   }
@@ -1672,6 +2316,7 @@ function processTick(msg) {
   if (liveBots > 0) $('bots-left').textContent = `${liveBots} hostile${liveBots !== 1 ? 's' : ''} active`;
   else if (msg.nextWaveIn > 0) $('bots-left').textContent = `Next wave in ${Math.ceil(msg.nextWaveIn / 1000)}s`;
   else $('bots-left').textContent = 'Standby';
+  $('pause-banner').classList.toggle('hidden', !msg.paused);
 
   if (msg.over === 'loss') {
     showGameOver('DEFEAT', msg);
@@ -2342,6 +2987,315 @@ function spawnSwingFX() {
 
 // Boot melee preference from saved
 setMyMelee(myMelee);
+
+// =========================== FLOATING COMBAT TEXT ===========================
+const floatTexts = []; // { sprite, life, maxLife, vy }
+
+function makeDamageSprite(text, color, scale) {
+  const cnv = document.createElement('canvas');
+  cnv.width = 256; cnv.height = 128;
+  const ctx = cnv.getContext('2d');
+  ctx.clearRect(0, 0, 256, 128);
+  ctx.font = 'bold 64px ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#000';
+  ctx.strokeText(text, 128, 64);
+  ctx.fillStyle = color;
+  ctx.fillText(text, 128, 64);
+  const tex = new THREE.CanvasTexture(cnv);
+  tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(scale, scale * 0.5, 1);
+  s.renderOrder = 999;
+  return s;
+}
+
+function spawnFloatingDamage(pos, dmg, headshot) {
+  if (!scene || !pos || !dmg) return;
+  const color = headshot ? '#ffd400' : '#ff8a8a';
+  const text = headshot ? `${dmg}!` : `${dmg}`;
+  const scale = headshot ? 2.4 : 1.4;
+  const s = makeDamageSprite(text, color, scale);
+  // Random small horizontal offset for readability
+  const jx = (Math.random() - 0.5) * 0.4;
+  const jz = (Math.random() - 0.5) * 0.4;
+  s.position.set(pos[0] + jx, pos[1] + 0.2, pos[2] + jz);
+  scene.add(s);
+  floatTexts.push({ sprite: s, life: 1.1, maxLife: 1.1, vy: headshot ? 2.2 : 1.6 });
+}
+
+(function meleeAndCombatLoop() {
+  let last = performance.now();
+  function tick() {
+    const t = performance.now();
+    const dt = Math.min((t - last) / 1000, 0.05);
+    last = t;
+    for (let i = floatTexts.length - 1; i >= 0; i--) {
+      const f = floatTexts[i];
+      f.life -= dt;
+      if (f.life <= 0) {
+        scene && scene.remove(f.sprite);
+        floatTexts.splice(i, 1);
+      } else {
+        f.sprite.position.y += f.vy * dt;
+        f.vy *= 0.96;
+        const a = Math.min(1, f.life / (f.maxLife * 0.6));
+        f.sprite.material.opacity = a;
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+
+// Hook into tick events to spawn damage numbers + headshot indicator
+(function patchTickForCombatText() {
+  const orig = window.processTick || processTick;
+  window.processTick = function(msg) {
+    orig(msg);
+    if (!msg || !msg.events) return;
+    for (const e of msg.events) {
+      if (e.type === 'hit-bot' && e.dmg > 0) {
+        spawnFloatingDamage(e.pos, e.dmg, !!e.headshot);
+        if (e.headshot && e.shooter === myId) showHeadshotMarker();
+      } else if (e.type === 'hit-player' && e.dmg > 0) {
+        spawnFloatingDamage(e.pos, e.dmg, !!e.headshot);
+        if (e.headshot && e.by === myId) showHeadshotMarker();
+      } else if (e.type === 'kill' && e.headshot && e.killer === myId) {
+        showHeadshotMarker(true);
+      }
+    }
+  };
+})();
+
+let headshotMarkerEl = null;
+function showHeadshotMarker(big) {
+  if (!headshotMarkerEl) {
+    headshotMarkerEl = document.createElement('div');
+    headshotMarkerEl.style.cssText = 'position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font:bold 18px ui-monospace,monospace;color:#ffd400;text-shadow:0 0 8px #000,0 0 4px #000;pointer-events:none;letter-spacing:2px;z-index:1000;opacity:0;transition:opacity 0.1s;';
+    document.body.appendChild(headshotMarkerEl);
+  }
+  headshotMarkerEl.textContent = big ? 'HEADSHOT KILL' : 'HEADSHOT';
+  headshotMarkerEl.style.fontSize = big ? '28px' : '18px';
+  headshotMarkerEl.style.opacity = '1';
+  clearTimeout(headshotMarkerEl._timer);
+  headshotMarkerEl._timer = setTimeout(() => { headshotMarkerEl.style.opacity = '0'; }, big ? 1200 : 700);
+}
+
+// =========================== OUTDOOR SKY + SUN ===========================
+let skyApplied = false;
+
+function buildSkyEquirect() {
+  const W = 2048, H = 1024;
+  const cnv = document.createElement('canvas');
+  cnv.width = W; cnv.height = H;
+  const ctx = cnv.getContext('2d');
+
+  // Sky gradient (top of image = up, midline = horizon)
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.5);
+  skyGrad.addColorStop(0.00, '#0e2a55');
+  skyGrad.addColorStop(0.45, '#3d72b6');
+  skyGrad.addColorStop(0.85, '#9fc8ea');
+  skyGrad.addColorStop(1.00, '#dbeafd');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H * 0.5);
+
+  // Ground hemisphere
+  const groundGrad = ctx.createLinearGradient(0, H * 0.5, 0, H);
+  groundGrad.addColorStop(0.0, '#c2a070');
+  groundGrad.addColorStop(0.25, '#6b6a5c');
+  groundGrad.addColorStop(0.7, '#2a2f3a');
+  groundGrad.addColorStop(1.0, '#0a0c10');
+  ctx.fillStyle = groundGrad;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+  // Wispy clouds (bands)
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  for (let i = 0; i < 14; i++) {
+    const cx = Math.random() * W;
+    const cy = H * 0.08 + Math.random() * H * 0.32;
+    const rw = 90 + Math.random() * 240;
+    const rh = 14 + Math.random() * 28;
+    ctx.globalAlpha = 0.35 + Math.random() * 0.35;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rw, rh, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // SUN at sunU/sunV (in equirect coords). u: longitude, v: latitude (0=up).
+  const sunU = 0.62, sunV = 0.22;
+  const sx = sunU * W, sy = sunV * H;
+
+  // Big soft glow
+  const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, 280);
+  glow.addColorStop(0.00, 'rgba(255,247,210,1.0)');
+  glow.addColorStop(0.12, 'rgba(255,224,140,0.9)');
+  glow.addColorStop(0.35, 'rgba(255,200,110,0.45)');
+  glow.addColorStop(0.75, 'rgba(255,200,110,0.08)');
+  glow.addColorStop(1.00, 'rgba(255,200,110,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 280, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Bright disc
+  ctx.fillStyle = '#fff8da';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 55, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 26, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Convert sun (u,v) to a world direction (for matching the directional light)
+  const theta = sunU * Math.PI * 2;
+  const phi = sunV * Math.PI;
+  const dirVec = {
+    x: Math.sin(phi) * Math.cos(theta),
+    y: Math.cos(phi),
+    z: Math.sin(phi) * Math.sin(theta),
+  };
+
+  const tex = new THREE.CanvasTexture(cnv);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+
+  return { tex, dirVec };
+}
+
+function ensureOutdoorScene() {
+  if (skyApplied) return;
+  if (!scene || !renderer || !camera) return;
+
+  const { tex, dirVec } = buildSkyEquirect();
+  scene.background = tex;
+
+  // Remove the old dark BackSide skybox if present
+  const toRemove = [];
+  scene.traverse(o => {
+    if (o.isMesh && o.material && o.material.side === THREE.BackSide) toRemove.push(o);
+  });
+  for (const o of toRemove) {
+    o.geometry && o.geometry.dispose();
+    o.material && o.material.dispose && o.material.dispose();
+    scene.remove(o);
+  }
+
+  // Lighter, farther fog so the sky is visible
+  scene.fog = new THREE.Fog(0xb0c8e0, 50, 220);
+
+  // Reorient the directional light to match the sun
+  let dirLight = null, hemi = null;
+  scene.traverse(o => {
+    if (o.isDirectionalLight) dirLight = o;
+    if (o.isHemisphereLight) hemi = o;
+  });
+  if (dirLight) {
+    dirLight.position.set(dirVec.x * 80, dirVec.y * 80 + 30, dirVec.z * 80);
+    dirLight.target.position.set(0, 0, 0);
+    dirLight.color.setHex(0xfff0d0);
+    dirLight.intensity = 1.25;
+  }
+  if (hemi) {
+    hemi.color.setHex(0xaccbf2);
+    hemi.groundColor.setHex(0x705a3a);
+    hemi.intensity = 0.75;
+  }
+
+  // Outdoor tone mapping for richer sky/light
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  skyApplied = true;
+}
+
+// Poll until scene exists, then apply once
+(function pollSky() {
+  function check() {
+    ensureOutdoorScene();
+    if (!skyApplied) setTimeout(check, 250);
+  }
+  check();
+})();
+
+// =========================== SPREAD / ADS PRECISION ===========================
+// Half-cone spread in radians applied at full hip-fire. Scales by (1 - adsT).
+// 0.022 rad ≈ 1.26° — tight, but visibly non-deterministic.
+const WEAPON_SPREAD = {
+  rifle:  0.022,
+  pistol: 0.014,
+};
+
+doShoot = function() {
+  const now = performance.now();
+  const v = WEAPON_VIEW[currentWeapon] || WEAPON_VIEW.rifle;
+  if (now - lastClientShot < v.fireRateMs) return;
+  if (lastTickMsg) {
+    const me = lastTickMsg.players.find(p => p.id === myId);
+    if (me && me.hp <= 0) return;
+    if (me && me.ammo <= 0) { playSound('empty'); return; }
+  }
+  lastClientShot = now;
+
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+
+  // ADS = perfect aim. Hip = small random cone.
+  const ads = (typeof adsT === 'number' ? adsT : 0);
+  if (ads < 0.985) {
+    const base = WEAPON_SPREAD[currentWeapon] || 0.02;
+    const spread = base * (1 - ads);
+    const theta = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * spread;
+    const upRef = Math.abs(dir.y) > 0.95 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(dir, upRef).normalize();
+    const upTrue = new THREE.Vector3().crossVectors(right, dir).normalize();
+    const ox = (right.x * Math.cos(theta) + upTrue.x * Math.sin(theta)) * r;
+    const oy = (right.y * Math.cos(theta) + upTrue.y * Math.sin(theta)) * r;
+    const oz = (right.z * Math.cos(theta) + upTrue.z * Math.sin(theta)) * r;
+    dir.x += ox; dir.y += oy; dir.z += oz;
+    dir.normalize();
+  }
+
+  ws && ws.send(JSON.stringify({
+    type: 'shoot',
+    origin: [camera.position.x, camera.position.y, camera.position.z],
+    dir: [dir.x, dir.y, dir.z],
+  }));
+  playSound('shot');
+  spawnMuzzleFlash();
+  weaponRecoil = Math.min(1, weaponRecoil + 0.55);
+};
+
+// =========================== PEER VERTICAL SYNC ===========================
+// Server already gets each player's camera.y in input messages. The renderer
+// was clamping peer y to 0; this overrides target.y so peers' jumps,
+// wall-runs and any verticality are reflected in 3D.
+const PEER_EYE_OFFSET = 1.6; // camera height above feet — matches local controller
+(function patchPeerHeight() {
+  const orig = window.processTick || processTick;
+  window.processTick = function(msg) {
+    orig(msg);
+    if (!msg || !msg.players) return;
+    for (const p of msg.players) {
+      if (p.id === myId) continue;
+      const op = otherPlayers.get(p.id);
+      if (!op) continue;
+      const eyeY = (typeof p.pos[1] === 'number') ? p.pos[1] : PEER_EYE_OFFSET;
+      const feetY = Math.max(0, eyeY - PEER_EYE_OFFSET);
+      op.target.y = feetY;
+    }
+  };
+})();
 </script>
 </body>
 </html>
