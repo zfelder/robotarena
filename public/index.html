@@ -335,6 +335,18 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import RAPIER from 'https://cdn.skypack.dev/@dimforge/rapier3d-compat@0.12.0';
+
+// Rapier needs an async init before any of its APIs work. Resolve once at module
+// load — the rest of the game waits on `physicsReady` (a promise) before
+// constructing colliders or ragdolls.
+const physicsReady = RAPIER.init();
+let physicsWorld = null;
+const ragdolls = []; // { group, body, ttl, parts: [{mesh, body, offset}] }
+const RAGDOLL_TTL = 25;  // seconds before a corpse is despawned
+const PHYS_GRAVITY = { x: 0, y: -18, z: 0 };
+const FIXED_PHYS_DT = 1 / 60;
+let physicsAccum = 0;
 
 // =========================== STATE ===========================
 const $ = (id) => document.getElementById(id);
@@ -872,6 +884,30 @@ function initThree() {
 
   radarCanvas = $('radar-canvas');
   radarCtx = radarCanvas.getContext('2d');
+
+  // Spin up the physics world (async — Rapier WASM needs init). Walls/floor
+  // colliders are built once the world is ready; ragdolls only spawn after.
+  physicsReady.then(() => {
+    physicsWorld = new RAPIER.World(PHYS_GRAVITY);
+    // Static ground plane (huge thin slab at y<=0)
+    {
+      const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(0, -0.5, 0);
+      const rb = physicsWorld.createRigidBody(desc);
+      const cd = RAPIER.ColliderDesc.cuboid(mapHalf * 2, 0.5, mapHalf * 2)
+        .setFriction(0.9).setRestitution(0.05);
+      physicsWorld.createCollider(cd, rb);
+    }
+    // Every wall/platform/stair becomes a fixed cuboid collider
+    for (const w of walls) {
+      const wy = w.y == null ? 1.5 : w.y;
+      const wh = w.h == null ? 3 : w.h;
+      const desc = RAPIER.RigidBodyDesc.fixed().setTranslation(w.x, wy, w.z);
+      const rb = physicsWorld.createRigidBody(desc);
+      const cd = RAPIER.ColliderDesc.cuboid(w.w / 2, wh / 2, w.d / 2)
+        .setFriction(0.85).setRestitution(0.06);
+      physicsWorld.createCollider(cd, rb);
+    }
+  }).catch(err => console.error('Rapier init failed', err));
 
   prevTime = performance.now();
   requestAnimationFrame(animate);
@@ -1907,9 +1943,127 @@ function animate(t) {
     bo.group.rotation.y = bo.yaw;
   }
 
+  // Step physics + sync corpse meshes (fixed timestep, accumulator pattern).
+  if (physicsWorld) {
+    physicsAccum += dt;
+    let steps = 0;
+    while (physicsAccum >= FIXED_PHYS_DT && steps < 4) {
+      physicsWorld.step();
+      physicsAccum -= FIXED_PHYS_DT;
+      steps++;
+    }
+    for (let i = ragdolls.length - 1; i >= 0; i--) {
+      const rd = ragdolls[i];
+      rd.ttl -= dt;
+      for (const part of rd.parts) {
+        const t = part.body.translation();
+        const q = part.body.rotation();
+        part.mesh.position.set(t.x, t.y, t.z);
+        part.mesh.quaternion.set(q.x, q.y, q.z, q.w);
+      }
+      if (rd.ttl <= 0) {
+        for (const part of rd.parts) {
+          scene.remove(part.mesh);
+          physicsWorld.removeRigidBody(part.body);
+        }
+        ragdolls.splice(i, 1);
+      }
+    }
+  }
+
   drawRadar();
   if (composer) composer.render();
   else renderer.render(scene, camera);
+}
+
+// =========================== RAGDOLL ===========================
+// Spawn a physics-driven corpse made of 5 rigid bodies (head, torso, two arms,
+// hips/legs) connected by ball joints. Replaces the static bot mesh.
+function spawnRagdoll(staticGroup, footPos, yaw, isBoss, tier) {
+  if (!physicsWorld) return null;
+  const scale = isBoss ? (1.5 + Math.min(tier, 5) * 0.16) : 1.0;
+  const s = scale;
+
+  // Body part half-extents (mostly tuned to original bot proportions × scale)
+  const torsoHalf = { x: 0.35 * s, y: 0.5 * s, z: 0.25 * s };
+  const headHalf  = { x: 0.225 * s, y: 0.225 * s, z: 0.225 * s };
+  const armHalf   = { x: 0.10 * s, y: 0.4 * s, z: 0.10 * s };
+  const legsHalf  = { x: 0.32 * s, y: 0.25 * s, z: 0.32 * s };
+
+  // World-space centers built from the bot's foot position
+  const px = footPos.x, pz = footPos.z;
+  const py = (footPos.y || 0);
+  const c = (x, y, z) => ({ x: px + x, y: py + y, z: pz + z });
+  const torsoC = c(0,                0.9 * s,            0);
+  const headC  = c(0,                1.6 * s,            0);
+  const armLC  = c( 0.55 * s,        0.95 * s,           0);
+  const armRC  = c(-0.55 * s,        0.95 * s,           0);
+  const legsC  = c(0,                0.25 * s,           0);
+
+  // Color palette: re-uses the original bot's flavor (or boss palette)
+  const styleColor = isBoss
+    ? ([0xaa2222, 0xaa2222, 0x884400, 0x4488ff, 0x22cc66, 0xaa44ff][Math.min(tier, 5)] || 0x884400)
+    : 0xff4444;
+
+  function makePart(center, half, color, geomBuilder) {
+    const desc = RAPIER.RigidBodyDesc.dynamic()
+      .setTranslation(center.x, center.y, center.z)
+      .setLinearDamping(0.18).setAngularDamping(0.5);
+    const rb = physicsWorld.createRigidBody(desc);
+    const cd = RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z)
+      .setFriction(0.85).setRestitution(0.04).setDensity(1.1);
+    physicsWorld.createCollider(cd, rb);
+    const mesh = new THREE.Mesh(geomBuilder(), new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85 }));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    return { mesh, body: rb };
+  }
+
+  const torso = makePart(torsoC, torsoHalf, styleColor, () => new THREE.BoxGeometry(torsoHalf.x * 2, torsoHalf.y * 2, torsoHalf.z * 2));
+  const head  = makePart(headC,  headHalf,  0x1a1a1a,   () => new THREE.BoxGeometry(headHalf.x * 2,  headHalf.y * 2,  headHalf.z * 2));
+  const armL  = makePart(armLC,  armHalf,   0x3a3a3a,   () => new THREE.BoxGeometry(armHalf.x * 2,   armHalf.y * 2,   armHalf.z * 2));
+  const armR  = makePart(armRC,  armHalf,   0x3a3a3a,   () => new THREE.BoxGeometry(armHalf.x * 2,   armHalf.y * 2,   armHalf.z * 2));
+  const legs  = makePart(legsC,  legsHalf,  0x2a2a2a,   () => new THREE.BoxGeometry(legsHalf.x * 2,  legsHalf.y * 2,  legsHalf.z * 2));
+
+  // Ball joints — anchors are LOCAL to each body (the body's center is the origin).
+  // Neck: top of torso ↔ bottom of head
+  physicsWorld.createImpulseJoint(
+    RAPIER.JointData.spherical({ x: 0, y: torsoHalf.y, z: 0 }, { x: 0, y: -headHalf.y, z: 0 }),
+    torso.body, head.body, true);
+  // Left shoulder
+  physicsWorld.createImpulseJoint(
+    RAPIER.JointData.spherical({ x: torsoHalf.x + 0.05, y: torsoHalf.y - 0.05, z: 0 }, { x: 0, y: armHalf.y - 0.05, z: 0 }),
+    torso.body, armL.body, true);
+  // Right shoulder
+  physicsWorld.createImpulseJoint(
+    RAPIER.JointData.spherical({ x: -(torsoHalf.x + 0.05), y: torsoHalf.y - 0.05, z: 0 }, { x: 0, y: armHalf.y - 0.05, z: 0 }),
+    torso.body, armR.body, true);
+  // Hips: bottom of torso ↔ top of legs
+  physicsWorld.createImpulseJoint(
+    RAPIER.JointData.spherical({ x: 0, y: -torsoHalf.y, z: 0 }, { x: 0, y: legsHalf.y, z: 0 }),
+    torso.body, legs.body, true);
+
+  // Kickback — gives the corpse some initial tumble/flop
+  const tumble = 3.5;
+  const sy = Math.sin(yaw), cy = Math.cos(yaw);
+  const fwdImp = { x: sy * 1.2, y: 1.8, z: cy * 1.2 };
+  torso.body.applyImpulse(fwdImp, true);
+  torso.body.applyTorqueImpulse({
+    x: (Math.random() - 0.5) * tumble,
+    y: (Math.random() - 0.5) * tumble,
+    z: (Math.random() - 0.5) * tumble,
+  }, true);
+  head.body.applyTorqueImpulse({ x: (Math.random() - 0.5) * 0.5, y: 0, z: (Math.random() - 0.5) * 0.5 }, true);
+  armL.body.applyImpulse({ x: 0.3, y: 0.5, z: 0 }, true);
+  armR.body.applyImpulse({ x: -0.3, y: 0.5, z: 0 }, true);
+
+  // Remove the static (alive) mesh — physics meshes replace it
+  if (staticGroup) scene.remove(staticGroup);
+
+  const rd = { parts: [torso, head, armL, armR, legs], ttl: RAGDOLL_TTL };
+  ragdolls.push(rd);
+  return rd;
 }
 
 // =========================== BOT / BOSS MODELS ===========================
@@ -2252,14 +2406,23 @@ function processTick(msg) {
     }
     if (b.hp <= 0 && !bo.dead) {
       bo.dead = true;
-      bo.body.rotation.x = Math.PI / 2;
-      bo.body.position.y = bo.boss ? 0.5 : 0.3;
-      bo.body.material.color.set(0x222222);
-      if (bo.eye) bo.eye.visible = false;
-      if (bo.eyes) bo.eyes.forEach(e => e.visible = false);
-      bo.head.position.y = bo.boss ? 0.5 : 0.3;
-      bo.hb.visible = false;
-      if (bo.aura) bo.aura.visible = false;
+      // Drop a physics-driven ragdoll where the bot was standing, then remove
+      // the static mesh. Falls down stairs / off platforms like a real corpse.
+      const fallback = () => {
+        bo.body.rotation.x = Math.PI / 2;
+        bo.body.position.y = bo.boss ? 0.5 : 0.3;
+        bo.body.material.color.set(0x222222);
+        if (bo.eye) bo.eye.visible = false;
+        if (bo.eyes) bo.eyes.forEach(e => e.visible = false);
+        bo.head.position.y = bo.boss ? 0.5 : 0.3;
+        bo.hb.visible = false;
+        if (bo.aura) bo.aura.visible = false;
+      };
+      if (physicsWorld) {
+        spawnRagdoll(bo.group, { x: b.pos[0], y: b.pos[1] || 0, z: b.pos[2] }, b.yaw || 0, !!bo.boss, bo.tier || 0);
+      } else {
+        fallback();
+      }
     }
   }
 

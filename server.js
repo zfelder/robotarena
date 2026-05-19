@@ -65,57 +65,61 @@ const DEFAULT_MELEE = "knife";
 
 // Map walls (3D AABBs). Each wall: {x, z, w, d} with optional {y, h}.
 // Defaults: y = 1.5 (center), h = 3 (full ground-floor height).
-// Perimeter walls are made tall (h=6, y=3) so elevated shots still hit them.
+//
+// NEW LEVEL — two-story warehouse:
+//   * ground-floor combat zone in the southern half (Z < 5)
+//   * giant second-story slab covering Z = 5..28 at top y = 4.0
+//   * 10-step grand staircase at x=0 climbing from south up to the slab edge
+//   * 4 support pillars holding the slab
+//   * half-height cover on the upper floor
 const WALLS = [
-  // Perimeter (extra-tall so shots from towers still collide)
+  // Perimeter (extra-tall so elevated shots still collide)
   { x: 0, z: -MAP_HALF, w: MAP_HALF * 2, d: 1, y: 3, h: 6 },
   { x: 0, z: MAP_HALF, w: MAP_HALF * 2, d: 1, y: 3, h: 6 },
   { x: -MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2, y: 3, h: 6 },
   { x: MAP_HALF, z: 0, w: 1, d: MAP_HALF * 2, y: 3, h: 6 },
 
-  // Ground-floor cover (default y=1.5, h=3)
-  { x: -12, z: -10, w: 6, d: 1 },
-  { x: 10, z: -12, w: 1, d: 6 },
-  { x: 14, z: 8, w: 5, d: 1 },
-  { x: -8, z: 12, w: 1, d: 6 },
-  { x: 0, z: -2, w: 4, d: 1 },
-  { x: 0, z: 2, w: 1, d: 4 },
-  { x: -18, z: 6, w: 1, d: 4 },
-  { x: 18, z: -6, w: 1, d: 4 },
-  { x: 22, z: 18, w: 3, d: 3 },
-  { x: -22, z: -18, w: 3, d: 3 },
-  { x: -2, z: 18, w: 8, d: 1 },
-  { x: 2, z: -18, w: 8, d: 1 },
-  { x: 20, z: -20, w: 2, d: 2 },
-  { x: -20, z: 20, w: 2, d: 2 },
+  // Ground-floor cover (south half = combat zone)
+  { x: -16, z: -20, w: 4, d: 2 },
+  { x:  16, z: -20, w: 4, d: 2 },
+  { x: -10, z: -12, w: 2, d: 4 },
+  { x:  10, z: -12, w: 2, d: 4 },
+  { x: -22, z:  -8, w: 2, d: 6 },
+  { x:  22, z:  -8, w: 2, d: 6 },
+  { x:  -6, z:  -4, w: 4, d: 1 },
+  { x:   6, z:  -4, w: 4, d: 1 },
+  { x:   0, z: -16, w: 1, d: 4 },
 
-  // === SECOND STORY: 4 corner sniper towers, each 4x4 at top y=2.5 ===
-  { x: -23, z: -23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
-  { x:  23, z: -23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
-  { x:  23, z:  23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
-  { x: -23, z:  23, w: 4, d: 4, y: 2.35, h: 0.3, kind: "platform" },
+  // === SECOND STORY ===
+  // Big slab (top y=4.0, bottom y=3.6) covering Z=5..28
+  { x: 0, z: 16.5, w: 58, d: 23, y: 3.8, h: 0.4, kind: "platform" },
+  // Support pillars (cosmetic + give bots something to break LOS)
+  { x: -25, z: 10, w: 1, d: 1, y: 1.9, h: 3.6 },
+  { x:  25, z: 10, w: 1, d: 1, y: 1.9, h: 3.6 },
+  { x: -25, z: 26, w: 1, d: 1, y: 1.9, h: 3.6 },
+  { x:  25, z: 26, w: 1, d: 1, y: 1.9, h: 3.6 },
+  { x:   0, z: 26, w: 1, d: 1, y: 1.9, h: 3.6 },
 
-  // Stair flights (4 steps × 0.5 high) leading from arena interior to each tower edge
-  // NW tower (-23,-23): stairs along z=-23, climbing east toward the tower
-  { x: -18, z: -23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
-  { x: -19, z: -23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
-  { x: -20, z: -23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
-  { x: -21, z: -23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
-  // NE tower (23,-23): stairs along z=-23, climbing west toward the tower
-  { x:  18, z: -23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
-  { x:  19, z: -23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
-  { x:  20, z: -23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
-  { x:  21, z: -23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
-  // SE tower (23,23): stairs along z=23, climbing west
-  { x:  18, z:  23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
-  { x:  19, z:  23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
-  { x:  20, z:  23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
-  { x:  21, z:  23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
-  // SW tower (-23,23): stairs along z=23, climbing east
-  { x: -18, z:  23, w: 1.5, d: 4, y: 0.25, h: 0.5, kind: "stair" },
-  { x: -19, z:  23, w: 1.5, d: 4, y: 0.75, h: 0.5, kind: "stair" },
-  { x: -20, z:  23, w: 1.5, d: 4, y: 1.25, h: 0.5, kind: "stair" },
-  { x: -21, z:  23, w: 1.5, d: 4, y: 1.75, h: 0.5, kind: "stair" },
+  // Cover on the upper floor (sits on top of the slab)
+  { x: -12, z: 12, w: 4, d: 1.5, y: 4.7, h: 1.4, kind: "platform" },
+  { x:  12, z: 12, w: 4, d: 1.5, y: 4.7, h: 1.4, kind: "platform" },
+  { x:   0, z: 20, w: 6, d: 1.5, y: 4.7, h: 1.4, kind: "platform" },
+  { x: -15, z: 24, w: 4, d: 1.5, y: 4.7, h: 1.4, kind: "platform" },
+  { x:  15, z: 24, w: 4, d: 1.5, y: 4.7, h: 1.4, kind: "platform" },
+
+  // === MAIN STAIRCASE ===
+  // 10 steps at x=0, width 4, each 0.4 high + 0.7 deep, climbing from y=0 to y=4
+  // Each step is a solid block from ground to its top so it visually "stacks".
+  { x: 0, z: -1.65, w: 4, d: 0.7, y: 0.20, h: 0.40, kind: "stair" },
+  { x: 0, z: -0.95, w: 4, d: 0.7, y: 0.40, h: 0.80, kind: "stair" },
+  { x: 0, z: -0.25, w: 4, d: 0.7, y: 0.60, h: 1.20, kind: "stair" },
+  { x: 0, z:  0.45, w: 4, d: 0.7, y: 0.80, h: 1.60, kind: "stair" },
+  { x: 0, z:  1.15, w: 4, d: 0.7, y: 1.00, h: 2.00, kind: "stair" },
+  { x: 0, z:  1.85, w: 4, d: 0.7, y: 1.20, h: 2.40, kind: "stair" },
+  { x: 0, z:  2.55, w: 4, d: 0.7, y: 1.40, h: 2.80, kind: "stair" },
+  { x: 0, z:  3.25, w: 4, d: 0.7, y: 1.60, h: 3.20, kind: "stair" },
+  { x: 0, z:  3.95, w: 4, d: 0.7, y: 1.80, h: 3.60, kind: "stair" },
+  { x: 0, z:  4.65, w: 4, d: 0.7, y: 2.00, h: 4.00, kind: "stair" },
 ];
 
 const PLAYER_SPAWN = [-MAP_HALF + 3, 0, -MAP_HALF + 3];
